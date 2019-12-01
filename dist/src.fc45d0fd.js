@@ -148,7 +148,7 @@ var Didact = {
 
 function createTextElement(text) {
   return {
-    type: "TEXT_ELEMENT",
+    type: 'TEXT_ELEMENT',
     props: {
       nodeValue: text,
       children: []
@@ -167,17 +167,17 @@ function createElement(type, props) {
     type: type,
     props: __assign(__assign({}, props), {
       children: children.map(function (child) {
-        return _typeof(child) === "object" ? child : createTextElement(child);
+        return _typeof(child) === 'object' ? child : createTextElement(child);
       })
     })
   };
 }
 
 function createDom(fiber) {
-  var dom = fiber.type === "TEXT_ELEMENT" ? document.createTextNode("") : document.createElement(fiber.type);
+  var dom = fiber.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(fiber.type);
   Object.entries(fiber.props).filter(function (_a) {
     var key = _a[0];
-    return key !== "children";
+    return key !== 'children';
   }).forEach(function (_a) {
     var key = _a[0],
         value = _a[1];
@@ -305,7 +305,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "59401" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "62199" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

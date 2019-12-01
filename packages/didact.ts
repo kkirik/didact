@@ -1,6 +1,6 @@
 const Didact = {
   render,
-  createElement
+  createElement,
 };
 
 export interface IDidactElement {
@@ -25,11 +25,11 @@ export interface IUnitOfWork {
 
 function createTextElement(text: string): IDidactElement {
   return {
-    type: "TEXT_ELEMENT",
+    type: 'TEXT_ELEMENT',
     props: {
       nodeValue: text,
-      children: []
-    }
+      children: [],
+    },
   };
 }
 
@@ -43,20 +43,20 @@ function createElement(
     props: {
       ...props,
       children: children.map(child =>
-        typeof child === "object" ? child : createTextElement(child)
-      )
-    }
+        typeof child === 'object' ? child : createTextElement(child)
+      ),
+    },
   };
 }
 
 function createDom(fiber: IUnitOfWork) {
   const dom =
-    fiber.type === "TEXT_ELEMENT"
-      ? document.createTextNode("")
+    fiber.type === 'TEXT_ELEMENT'
+      ? document.createTextNode('')
       : document.createElement(fiber.type);
 
   Object.entries(fiber.props)
-    .filter(([key]) => key !== "children")
+    .filter(([key]) => key !== 'children')
     .forEach(([key, value]) => {
       dom[key] = value;
     });
@@ -68,8 +68,8 @@ function render(element: IUnitOfWork, container: Element | Text) {
   nextUnitOfWork = {
     dom: container,
     props: {
-      children: [element]
-    }
+      children: [element],
+    },
   };
 }
 
@@ -117,7 +117,7 @@ function performUnitOfWork(fiber: IUnitOfWork) {
       type: element.type,
       props: element.props,
       parent: fiber,
-      dom: null
+      dom: null,
     };
 
     if (index === 0) {
