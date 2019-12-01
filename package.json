@@ -1,0 +1,23 @@
+{
+  "name": "didact",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "parcel index.html"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@babel/cli": "^7.7.4",
+    "@babel/core": "^7.7.4",
+    "@babel/preset-react": "^7.7.4",
+    "@babel/preset-typescript": "^7.7.4",
+    "parcel-bundler": "^1.12.4"
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-react-jsx": "^7.7.4",
+    "@types/requestidlecallback": "^0.3.1",
+    "typescript": "^3.7.2"
+  }
+}

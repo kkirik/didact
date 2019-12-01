@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "jsxFactory": "Didact",
+    "allowJs": true,
+    "checkJs": false,
+    "outDir": "./dist/",
+    "noImplicitAny": false,
+    "noUnusedParameters": true,
+    "noErrorTruncation": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "pretty": true,
+    "sourceMap": false,
+    "target": "es2016",
+    "noUnusedLocals": true,
+    "lib": ["es6", "es7", "esnext", "dom"],
+    "allowSyntheticDefaultImports": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  }
+}
