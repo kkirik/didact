@@ -1,5 +1,5 @@
 /** @jsx Didact.createElement */
-import Didact, { IDidactElement } from "../packages/didact";
+import Didact, { IDidactElement } from '../packages/didact';
 
 const element: IDidactElement = (
   <div style="background: salmon">
@@ -9,6 +9,6 @@ const element: IDidactElement = (
   </div>
 );
 
-const container = document.querySelector(".root");
+const container = document.querySelector('.root');
 
 Didact.render(element, container);
