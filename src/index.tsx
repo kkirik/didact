@@ -1,14 +1,20 @@
-/** @jsx Didact.createElement */
-import Didact, { IDidactElement } from "../packages/didact";
+export const element = {
+  type: 'h1',
+  props: {
+    title: 'foo',
+    children: 'Hello',
+  },
+};
 
-const element: IDidactElement = (
-  <div style="background: salmon">
-    <h1>Hello World</h1>
-    <h2 style="text-align:right">from Didact</h2>
-    <h3 style="text-align:right">from Didact3</h3>
-  </div>
-);
+const container = document.getElementById('root');
+const node = document.createElement(element.type);
+node['title'] = element.props.title;
+const text = document.createTextNode('');
+text['nodeValue'] = element.props.children;
+node.appendChild(text);
+container.appendChild(node);
 
-const container = document.querySelector(".root");
-
-Didact.render(element, container);
+// Вместо
+// const element = <h1 title="foo">Hello</h1>
+// const container = document.getElementById("root")
+// ReactDOM.render(element, container)
