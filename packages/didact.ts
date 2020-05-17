@@ -1,3 +1,5 @@
+type DomNode = Text | HTMLElement | Element;
+
 export interface IDidactElement {
   type: string;
   props: {
@@ -7,17 +9,21 @@ export interface IDidactElement {
   };
 }
 
+interface IFiberNodeProps {
+  [key: string]: any;
+  children: IDidactElement[];
+  nodeValue?: string;
+}
+
 export interface IFiberNode {
-  dom: Text | HTMLElement | Element;
+  dom: DomNode;
   parent?: IFiberNode;
   child?: IFiberNode;
   sibling?: IFiberNode;
   type?: string;
-  props: {
-    [key: string]: any;
-    children: IDidactElement[];
-    nodeValue?: string;
-  };
+  alternate?: IFiberNode;
+  effectTag?: 'UPDATE' | 'PLACEMENT' | 'DELETION';
+  props: IFiberNodeProps;
 }
 
 function createElement(
@@ -62,16 +68,91 @@ function createDom(fiber: IFiberNode) {
   return dom;
 }
 
-function render(element: IDidactElement, container: Text | HTMLElement | Element) {
-  nextUnitOfWork = {
+const isEvent = (key: string) => key.startsWith('on');
+const isProperty = (key: string) => key !== 'children' && !isEvent(key);
+const isNew = (prev: IFiberNodeProps, next: IFiberNodeProps) => (key: string) =>
+  prev[key] !== next[key];
+const isGone = (_, next: IFiberNodeProps) => (key: string) => !(key in next);
+
+function updateDom(dom: DomNode, prevProps: IFiberNodeProps, nextProps: IFiberNodeProps) {
+  //Remove old or changed event listeners
+  Object.keys(prevProps)
+    .filter(isEvent)
+    .filter((key) => !(key in nextProps) || isNew(prevProps, nextProps)(key))
+    .forEach((name) => {
+      const eventType = name.toLowerCase().substring(2);
+      dom.removeEventListener(eventType, prevProps[name]);
+    });
+
+  // Remove old properties
+  Object.keys(prevProps)
+    .filter(isProperty)
+    .filter(isGone(prevProps, nextProps))
+    .forEach((name) => {
+      dom[name] = '';
+    });
+
+  // Set new or changed properties
+  Object.keys(nextProps)
+    .filter(isProperty)
+    .filter(isNew(prevProps, nextProps))
+    .forEach((name) => {
+      dom[name] = nextProps[name];
+    });
+
+  // Add event listeners
+  Object.keys(nextProps)
+    .filter(isEvent)
+    .filter(isNew(prevProps, nextProps))
+    .forEach((name) => {
+      const eventType = name.toLowerCase().substring(2);
+      dom.addEventListener(eventType, nextProps[name]);
+    });
+}
+
+function commitRoot() {
+  deletions.forEach(commitWork);
+  commitWork(wipRoot.child);
+  currentRoot = wipRoot;
+  wipRoot = null;
+}
+
+function commitWork(fiber: IFiberNode) {
+  if (!fiber) {
+    return;
+  }
+
+  const domParent = fiber.parent.dom;
+
+  if (fiber.effectTag === 'PLACEMENT' && fiber.dom !== null) {
+    domParent.appendChild(fiber.dom);
+  } else if (fiber.effectTag === 'UPDATE') {
+    updateDom(fiber.dom, fiber.alternate.props, fiber.props);
+  } else if (fiber.effectTag === 'DELETION') {
+    domParent.removeChild(fiber.dom);
+  }
+
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
+}
+
+function render(element: IDidactElement, container: DomNode) {
+  wipRoot = {
     dom: container,
     props: {
       children: [element],
     },
+    alternate: currentRoot,
   };
+
+  deletions = [];
+  nextUnitOfWork = wipRoot;
 }
 
-let nextUnitOfWork: IFiberNode | null = null;
+let nextUnitOfWork: IFiberNode = null;
+let wipRoot: IFiberNode = null;
+let currentRoot: IFiberNode = null;
+let deletions: IFiberNode[] = [];
 
 function workLoop(deadline: IdleDeadline) {
   let shouldYield = false;
@@ -79,6 +160,10 @@ function workLoop(deadline: IdleDeadline) {
   while (nextUnitOfWork && !shouldYield) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
     shouldYield = deadline.timeRemaining() < 1;
+  }
+
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
   }
 
   requestIdleCallback(workLoop);
@@ -94,34 +179,9 @@ function performUnitOfWork(fiber: IFiberNode) {
     fiber.dom = createDom(fiber);
   }
 
-  if (fiber.parent) {
-    fiber.parent.dom.appendChild(fiber.dom);
-  }
-
   // TODO create new fibers
   const elements = fiber.props.children;
-  let index = 0;
-  let prevSibling: IFiberNode = null;
-
-  while (index < elements.length) {
-    const element = elements[index];
-
-    const newFiber: IFiberNode = {
-      type: element.type,
-      props: element.props,
-      parent: fiber,
-      dom: null,
-    };
-
-    if (index === 0) {
-      fiber.child = newFiber;
-    } else {
-      prevSibling.sibling = newFiber;
-    }
-
-    prevSibling = newFiber;
-    index++;
-  }
+  reconcileChildren(fiber, elements);
 
   // TODO return next unit of work
   if (fiber.child) {
@@ -136,6 +196,61 @@ function performUnitOfWork(fiber: IFiberNode) {
     }
 
     nextFiber = nextFiber.parent;
+  }
+}
+
+function reconcileChildren(wipFiber: IFiberNode, elements: IDidactElement[]) {
+  let index = 0;
+  let oldFiber = wipRoot.alternate && wipFiber.child.alternate;
+  let prevSibling: IFiberNode = null;
+
+  while (index < elements.length || oldFiber !== null) {
+    const element = elements[index];
+
+    let newFiber: IFiberNode = null;
+
+    // TODO compare oldFiber to element
+    const sameType = oldFiber && element && element.type === oldFiber.type;
+
+    // Здесь же в самом React используются ключи (keys), которые улучшают процесс сравнения.
+    // К примеру, это позволяет определить, когда потомки меняют свой порядок в массиве элементов.
+
+    if (sameType) {
+      // TODO update the node
+      newFiber = {
+        type: oldFiber.type,
+        props: element.props,
+        dom: oldFiber.dom,
+        parent: wipFiber,
+        alternate: oldFiber,
+        effectTag: 'UPDATE',
+      };
+    }
+    if (element && !sameType) {
+      // TODO add this node
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        dom: null,
+        parent: wipFiber,
+        alternate: null,
+        effectTag: 'PLACEMENT',
+      };
+    }
+    if (oldFiber && !sameType) {
+      // TODO delete the oldFiber's node
+      oldFiber.effectTag = 'DELETION';
+      deletions.push(oldFiber);
+    }
+
+    if (index === 0) {
+      wipFiber.child = newFiber;
+    } else {
+      prevSibling.sibling = newFiber;
+    }
+
+    prevSibling = newFiber;
+    index++;
   }
 }
 
