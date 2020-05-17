@@ -33,7 +33,7 @@ function createTextElement(text: string): IDidactElement {
   };
 }
 
-function render(element: IDidactElement, container: Text | HTMLElement) {
+function render(element: IDidactElement, container: Text | HTMLElement | Element) {
   const dom =
     element.type === 'TEXT_ELEMENT'
       ? document.createTextNode('')
@@ -50,6 +50,23 @@ function render(element: IDidactElement, container: Text | HTMLElement) {
 
   container.appendChild(dom);
 }
+
+let nextUnitOfWork = null;
+
+function workLoop(deadline: IdleDeadline) {
+  let shouldYield = false;
+
+  while (nextUnitOfWork && !shouldYield) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    shouldYield = deadline.timeRemaining() < 1;
+  }
+}
+
+function performUnitOfWork(nextUnitOfWork) {
+  // TODO
+}
+
+requestIdleCallback(workLoop);
 
 const Didact = {
   render,
