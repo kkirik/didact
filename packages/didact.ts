@@ -69,99 +69,25 @@ function render(element: UnitOfWork, container: Element | Text) {
   container.appendChild(dom);
 }
 
-// function createDom(fiber: UnitOfWork) {
-//   const dom =
-//     fiber.type === 'TEXT_ELEMENT'
-//       ? document.createTextNode('')
-//       : document.createElement(fiber.type);
+let nextUnitOfWork: UnitOfWork | null = null;
 
-//   Object.entries(fiber.props)
-//     .filter(([key]) => key !== 'children')
-//     .forEach(([key, value]) => {
-//       dom[key] = value;
-//     });
+function workLoop(deadline: IdleDeadline) {
+  let shouldYield = false;
 
-//   return dom;
-// }
+  while (nextUnitOfWork && !shouldYield) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+    shouldYield = deadline.timeRemaining() < 1;
+  }
 
-// function render(element: UnitOfWork, container: Element | Text) {
-//   nextUnitOfWork = {
-//     dom: container,
-//     props: {
-//       children: [element],
-//     },
-//   };
-// }
+  requestIdleCallback(workLoop);
+}
 
-// let nextUnitOfWork: UnitOfWork;
+requestIdleCallback(workLoop);
 
-// function workLoop(deadline: IdleDeadline) {
-//   let shouldYield = false;
-
-//   while (nextUnitOfWork && !shouldYield) {
-//     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
-//     shouldYield = deadline.timeRemaining() < 1;
-//   }
-
-//   requestIdleCallback(workLoop);
-// }
-
-// requestIdleCallback(workLoop);
-
-// // 1. TODO add dom node
-// // 2. TODO create new fibers
-// // 3. TODO return next unit of work
-
-// function performUnitOfWork(fiber: UnitOfWork) {
-//   //1. TODO add dom node
-
-//   if (!fiber.dom) {
-//     console.log(fiber);
-
-//     fiber.dom = createDom(fiber);
-//   }
-
-//   if (fiber.parent) {
-//     fiber.parent.dom.appendChild(fiber.dom);
-//   }
-
-//   // 2. TODO create new fibers
-
-//   const elements = fiber.props.children;
-//   let index = 0;
-//   let prevSibling: UnitOfWork;
-
-//   while (index < elements.length) {
-//     const element = elements[index];
-//     const newFiber: UnitOfWork = {
-//       type: element.type,
-//       props: element.props,
-//       parent: fiber,
-//       dom: null,
-//     };
-
-//     if (index === 0) {
-//       fiber.child = newFiber;
-//     } else {
-//       prevSibling.sibling = newFiber;
-//     }
-
-//     prevSibling = newFiber;
-//     index++;
-//   }
-
-//   // 3. TODO return next unit of work
-
-//   if (fiber.child) return fiber.child;
-
-//   let nextFiber = fiber;
-
-//   while (nextFiber) {
-//     if (nextFiber.sibling) return nextFiber.sibling;
-
-//     nextFiber = nextFiber.parent;
-//   }
-// }
+function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | null {
+  // TODO
+  return null;
+}
 
 const Didact = {
   render,
