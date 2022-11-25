@@ -12,7 +12,7 @@ export interface DidactElement {
 }
 
 export interface UnitOfWork {
-  type: string;
+  // type?: string;
   dom?: Element | Text;
   parent?: UnitOfWork;
   child?: UnitOfWork;
@@ -48,7 +48,7 @@ function createElement(
   };
 }
 
-function render(element: UnitOfWork, container: Element | Text) {
+function createDomNode(element: DidactElement) {
   const dom =
     element.type === 'TEXT_ELEMENT'
       ? document.createTextNode('')
@@ -66,16 +66,26 @@ function render(element: UnitOfWork, container: Element | Text) {
       dom[name] = element.props[name];
     });
 
-  container.appendChild(dom);
+  return dom;
 }
 
 let nextUnitOfWork: UnitOfWork | null = null;
+
+function render(element: UnitOfWork, container: Element | Text) {
+  nextUnitOfWork = {
+    dom: container,
+    props: {
+      children: [element],
+    },
+  };
+}
 
 function workLoop(deadline: IdleDeadline) {
   let shouldYield = false;
 
   while (nextUnitOfWork && !shouldYield) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+
     shouldYield = deadline.timeRemaining() < 1;
   }
 
@@ -85,7 +95,10 @@ function workLoop(deadline: IdleDeadline) {
 requestIdleCallback(workLoop);
 
 function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | null {
-  // TODO
+  // TODO add dom node
+  // TODO create new fibers
+  // TODO return next unit of work
+
   return null;
 }
 
