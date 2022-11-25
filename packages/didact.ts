@@ -17,6 +17,7 @@ export interface DidactElement {
 
 interface RootUnitOfWork {
   props: Props;
+  alternate: RootUnitOfWork | null;
   dom?: Element | Text;
   child?: FiberNode;
 }
@@ -64,10 +65,6 @@ function createDomNode(fiber: FiberNode) {
       ? document.createTextNode('')
       : document.createElement(fiber.type);
 
-  fiber.props.children.forEach((child) => {
-    render(child, dom);
-  });
-
   const isNodeProperty = (key) => key !== 'children';
 
   Object.keys(fiber.props)
@@ -80,7 +77,8 @@ function createDomNode(fiber: FiberNode) {
 }
 
 let nextUnitOfWork: UnitOfWork | null = null;
-let wipRoot: UnitOfWork | null = null;
+let wipRoot: RootUnitOfWork | null = null;
+let currentRoot: RootUnitOfWork | null = null;
 
 function render(element: FiberNode, container: Element | Text) {
   wipRoot = {
@@ -88,6 +86,7 @@ function render(element: FiberNode, container: Element | Text) {
     props: {
       children: [element],
     },
+    alternate: currentRoot,
   };
 
   nextUnitOfWork = wipRoot;
@@ -111,6 +110,7 @@ function commitWork(fiber: FiberNode | undefined) {
 function commitRoot() {
   if (wipRoot?.child) {
     commitWork(wipRoot.child);
+    currentRoot = wipRoot;
     wipRoot = null;
   }
 }
