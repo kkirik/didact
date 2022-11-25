@@ -1,29 +1,33 @@
+/**
+ * @link {https://site-chi-orcin.now.sh/build-your-own-react/}
+ */
+
+export interface DidactElement {
+  type: string;
+  props: {
+    [key: string]: any;
+    children: DidactElement[];
+    nodeValue?: string;
+  };
+}
+
+export interface UnitOfWork {
+  type?: string;
+  dom?: Element | Text;
+  parent?: UnitOfWork;
+  child?: UnitOfWork;
+  sibling?: UnitOfWork;
+  props: {
+    children: UnitOfWork[];
+  };
+}
+
 const Didact = {
   render,
   createElement,
 };
 
-export interface IDidactElement {
-  type: string;
-  props: {
-    [key: string]: any;
-    children: IDidactElement[];
-    nodeValue?: string;
-  };
-}
-
-export interface IUnitOfWork {
-  type?: string;
-  dom?: Element | Text;
-  parent?: IUnitOfWork;
-  child?: IUnitOfWork;
-  sibling?: IUnitOfWork;
-  props: {
-    children: IUnitOfWork[];
-  };
-}
-
-function createTextElement(text: string): IDidactElement {
+function createTextElement(text: string): DidactElement {
   return {
     type: 'TEXT_ELEMENT',
     props: {
@@ -35,112 +39,112 @@ function createTextElement(text: string): IDidactElement {
 
 function createElement(
   type: string,
-  props?: { [key: string]: any },
-  ...children: (string | IDidactElement)[]
-): IDidactElement {
+  props?: Record<string, any>,
+  ...children: (string | DidactElement)[]
+): DidactElement {
   return {
     type,
     props: {
       ...props,
-      children: children.map(child =>
+      children: children.map((child) =>
         typeof child === 'object' ? child : createTextElement(child)
       ),
     },
   };
 }
 
-function createDom(fiber: IUnitOfWork) {
-  const dom =
-    fiber.type === 'TEXT_ELEMENT'
-      ? document.createTextNode('')
-      : document.createElement(fiber.type);
+// function createDom(fiber: UnitOfWork) {
+//   const dom =
+//     fiber.type === 'TEXT_ELEMENT'
+//       ? document.createTextNode('')
+//       : document.createElement(fiber.type);
 
-  Object.entries(fiber.props)
-    .filter(([key]) => key !== 'children')
-    .forEach(([key, value]) => {
-      dom[key] = value;
-    });
+//   Object.entries(fiber.props)
+//     .filter(([key]) => key !== 'children')
+//     .forEach(([key, value]) => {
+//       dom[key] = value;
+//     });
 
-  return dom;
-}
+//   return dom;
+// }
 
-function render(element: IUnitOfWork, container: Element | Text) {
-  nextUnitOfWork = {
-    dom: container,
-    props: {
-      children: [element],
-    },
-  };
-}
+// function render(element: UnitOfWork, container: Element | Text) {
+//   nextUnitOfWork = {
+//     dom: container,
+//     props: {
+//       children: [element],
+//     },
+//   };
+// }
 
-let nextUnitOfWork: IUnitOfWork;
+// let nextUnitOfWork: UnitOfWork;
 
-function workLoop(deadline: IdleDeadline) {
-  let shouldYield = false;
+// function workLoop(deadline: IdleDeadline) {
+//   let shouldYield = false;
 
-  while (nextUnitOfWork && !shouldYield) {
-    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
-    shouldYield = deadline.timeRemaining() < 1;
-  }
+//   while (nextUnitOfWork && !shouldYield) {
+//     nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+//     shouldYield = deadline.timeRemaining() < 1;
+//   }
 
-  requestIdleCallback(workLoop);
-}
+//   requestIdleCallback(workLoop);
+// }
 
-requestIdleCallback(workLoop);
+// requestIdleCallback(workLoop);
 
-// 1. TODO add dom node
-// 2. TODO create new fibers
-// 3. TODO return next unit of work
+// // 1. TODO add dom node
+// // 2. TODO create new fibers
+// // 3. TODO return next unit of work
 
-function performUnitOfWork(fiber: IUnitOfWork) {
-  //1. TODO add dom node
+// function performUnitOfWork(fiber: UnitOfWork) {
+//   //1. TODO add dom node
 
-  if (!fiber.dom) {
-    console.log(fiber);
+//   if (!fiber.dom) {
+//     console.log(fiber);
 
-    fiber.dom = createDom(fiber);
-  }
+//     fiber.dom = createDom(fiber);
+//   }
 
-  if (fiber.parent) {
-    fiber.parent.dom.appendChild(fiber.dom);
-  }
+//   if (fiber.parent) {
+//     fiber.parent.dom.appendChild(fiber.dom);
+//   }
 
-  // 2. TODO create new fibers
+//   // 2. TODO create new fibers
 
-  const elements = fiber.props.children;
-  let index = 0;
-  let prevSibling: IUnitOfWork;
+//   const elements = fiber.props.children;
+//   let index = 0;
+//   let prevSibling: UnitOfWork;
 
-  while (index < elements.length) {
-    const element = elements[index];
-    const newFiber: IUnitOfWork = {
-      type: element.type,
-      props: element.props,
-      parent: fiber,
-      dom: null,
-    };
+//   while (index < elements.length) {
+//     const element = elements[index];
+//     const newFiber: UnitOfWork = {
+//       type: element.type,
+//       props: element.props,
+//       parent: fiber,
+//       dom: null,
+//     };
 
-    if (index === 0) {
-      fiber.child = newFiber;
-    } else {
-      prevSibling.sibling = newFiber;
-    }
+//     if (index === 0) {
+//       fiber.child = newFiber;
+//     } else {
+//       prevSibling.sibling = newFiber;
+//     }
 
-    prevSibling = newFiber;
-    index++;
-  }
+//     prevSibling = newFiber;
+//     index++;
+//   }
 
-  // 3. TODO return next unit of work
+//   // 3. TODO return next unit of work
 
-  if (fiber.child) return fiber.child;
+//   if (fiber.child) return fiber.child;
 
-  let nextFiber = fiber;
+//   let nextFiber = fiber;
 
-  while (nextFiber) {
-    if (nextFiber.sibling) return nextFiber.sibling;
+//   while (nextFiber) {
+//     if (nextFiber.sibling) return nextFiber.sibling;
 
-    nextFiber = nextFiber.parent;
-  }
-}
+//     nextFiber = nextFiber.parent;
+//   }
+// }
 
 export default Didact;
