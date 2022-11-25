@@ -93,8 +93,26 @@ function render(element: FiberNode, container: Element | Text) {
   nextUnitOfWork = wipRoot;
 }
 
+function commitWork(fiber: FiberNode | undefined) {
+  if (!fiber) {
+    return;
+  }
+
+  const parentDom = fiber.parent?.dom;
+
+  if (parentDom && fiber.dom) {
+    parentDom.appendChild(fiber.dom);
+  }
+
+  commitWork(fiber.child);
+  commitWork(fiber.sibling);
+}
+
 function commitRoot() {
-  // TODO add nodes to dom
+  if (wipRoot?.child) {
+    commitWork(wipRoot.child);
+    wipRoot = null;
+  }
 }
 
 function workLoop(deadline: IdleDeadline) {
