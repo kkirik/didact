@@ -12,7 +12,7 @@ export interface DidactElement {
 }
 
 export interface UnitOfWork {
-  type?: string;
+  type: string;
   dom?: Element | Text;
   parent?: UnitOfWork;
   child?: UnitOfWork;
@@ -21,11 +21,6 @@ export interface UnitOfWork {
     children: UnitOfWork[];
   };
 }
-
-const Didact = {
-  render,
-  createElement,
-};
 
 function createTextElement(text: string): DidactElement {
   return {
@@ -51,6 +46,27 @@ function createElement(
       ),
     },
   };
+}
+
+function render(element: UnitOfWork, container: Element | Text) {
+  const dom =
+    element.type === 'TEXT_ELEMENT'
+      ? document.createTextNode('')
+      : document.createElement(element.type);
+
+  element.props.children.forEach((child) => {
+    render(child, dom);
+  });
+
+  const isNodeProperty = (key) => key !== 'children';
+
+  Object.keys(element.props)
+    .filter(isNodeProperty)
+    .forEach((name) => {
+      dom[name] = element.props[name];
+    });
+
+  container.appendChild(dom);
 }
 
 // function createDom(fiber: UnitOfWork) {
@@ -146,5 +162,10 @@ function createElement(
 //     nextFiber = nextFiber.parent;
 //   }
 // }
+
+const Didact = {
+  render,
+  createElement,
+};
 
 export default Didact;
