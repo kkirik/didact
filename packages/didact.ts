@@ -2,6 +2,10 @@
  * @link {https://site-chi-orcin.now.sh/build-your-own-react/}
  */
 
+interface Props {
+  children: FiberNode[];
+}
+
 export interface DidactElement {
   type: string;
   props: {
@@ -12,22 +16,18 @@ export interface DidactElement {
 }
 
 interface RootUnitOfWork {
+  props: Props;
   dom?: Element | Text;
   child?: FiberNode;
-  props: {
-    children: FiberNode[];
-  };
 }
 
 interface FiberNode {
   type: keyof HTMLElementTagNameMap | 'TEXT_ELEMENT';
-  dom?: Element | Text;
-  parent?: UnitOfWork;
+  props: Props;
+  parent: UnitOfWork;
   child?: FiberNode;
   sibling?: FiberNode;
-  props: {
-    children: FiberNode[];
-  };
+  dom?: Element | Text;
 }
 
 export type UnitOfWork = RootUnitOfWork | FiberNode;
@@ -139,7 +139,23 @@ function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | null {
     index++;
   }
 
-  // TODO return next unit of work
+  if (fiber.child) {
+    return fiber.child;
+  }
+
+  let nextFiber: UnitOfWork | null = fiber;
+
+  while (nextFiber) {
+    if ('sibling' in nextFiber && nextFiber.sibling) {
+      return nextFiber.sibling;
+    }
+
+    if ('parent' in nextFiber) {
+      nextFiber = nextFiber?.parent;
+    } else {
+      nextFiber = null;
+    }
+  }
 
   return null;
 }
