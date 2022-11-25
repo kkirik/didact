@@ -95,7 +95,14 @@ function workLoop(deadline: IdleDeadline) {
 requestIdleCallback(workLoop);
 
 function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | null {
-  // TODO add dom node
+  if (!fiber.dom) {
+    fiber.dom = createDomNode(fiber);
+  }
+
+  if (fiber.parent?.dom) {
+    fiber.parent.dom.appendChild(fiber.dom);
+  }
+
   // TODO create new fibers
   // TODO return next unit of work
 
