@@ -138,55 +138,6 @@ function commitRoot() {
   }
 }
 
-function workLoop(deadline: IdleDeadline) {
-  let shouldYield = false;
-
-  while (nextUnitOfWork && !shouldYield) {
-    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
-
-    shouldYield = deadline.timeRemaining() < 1;
-  }
-
-  if (!nextUnitOfWork && wipRoot) {
-    commitRoot();
-  }
-
-  requestIdleCallback(workLoop);
-}
-
-requestIdleCallback(workLoop);
-
-function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | undefined {
-  /** isn't root fiber node */
-  if ('type' in fiber && !fiber.dom) {
-    fiber.dom = createDomNode(fiber);
-  }
-
-  const elements = fiber.props.children;
-
-  reconcileChildren(fiber, elements);
-
-  if (fiber.child) {
-    return fiber.child;
-  }
-
-  let nextFiber: UnitOfWork | undefined = fiber;
-
-  while (nextFiber) {
-    if ('sibling' in nextFiber && nextFiber.sibling) {
-      return nextFiber.sibling;
-    }
-
-    if ('parent' in nextFiber) {
-      nextFiber = nextFiber?.parent;
-    } else {
-      nextFiber = undefined;
-    }
-  }
-
-  return undefined;
-}
-
 function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
   let index = 0;
   let oldFiber = wipFiber.alternate?.child;
@@ -238,6 +189,55 @@ function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
     index++;
   }
 }
+
+function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | undefined {
+  /** isn't root fiber node */
+  if ('type' in fiber && !fiber.dom) {
+    fiber.dom = createDomNode(fiber);
+  }
+
+  const elements = fiber.props.children;
+
+  reconcileChildren(fiber, elements);
+
+  if (fiber.child) {
+    return fiber.child;
+  }
+
+  let nextFiber: UnitOfWork | undefined = fiber;
+
+  while (nextFiber) {
+    if ('sibling' in nextFiber && nextFiber.sibling) {
+      return nextFiber.sibling;
+    }
+
+    if ('parent' in nextFiber) {
+      nextFiber = nextFiber?.parent;
+    } else {
+      nextFiber = undefined;
+    }
+  }
+
+  return undefined;
+}
+
+function workLoop(deadline: IdleDeadline) {
+  let shouldYield = false;
+
+  while (nextUnitOfWork && !shouldYield) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+
+    shouldYield = deadline.timeRemaining() < 1;
+  }
+
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot();
+  }
+
+  requestIdleCallback(workLoop);
+}
+
+requestIdleCallback(workLoop);
 
 const Didact = {
   render,
