@@ -26,37 +26,30 @@ declare namespace Didact {
 
   type FiberNode = FiberUpdateNode | FiberPlacementNode | FiberDeletionNode;
 
-  interface FiberUpdateNode {
-    effectTag: 'UPDATE';
+  interface CommonFiberNode {
     type: NodeType;
     props: Props;
     parent: UnitOfWork;
+    child?: FiberNode;
+    sibling?: FiberNode;
+  }
+
+  interface FiberUpdateNode extends CommonFiberNode {
+    effectTag: 'UPDATE';
     alternate: UnitOfWork;
     dom: DOMElement | undefined;
-    child?: FiberNode;
-    sibling?: FiberNode;
   }
 
-  interface FiberPlacementNode {
+  interface FiberPlacementNode extends CommonFiberNode {
     effectTag: 'PLACEMENT';
-    type: NodeType;
-    props: Props;
-    parent: UnitOfWork;
-    alternate: RootUnitOfWork | undefined;
+    alternate: UnitOfWork | undefined;
     dom: DOMElement | undefined;
-    child?: FiberNode;
-    sibling?: FiberNode;
   }
 
-  interface FiberDeletionNode {
+  interface FiberDeletionNode extends CommonFiberNode {
     effectTag: 'DELETION';
-    type: NodeType;
-    props: Props;
-    parent: UnitOfWork;
-    alternate: RootUnitOfWork | undefined;
+    alternate: UnitOfWork | undefined;
     dom: DOMElement;
-    child?: FiberNode;
-    sibling?: FiberNode;
   }
 
   type UnitOfWork = RootUnitOfWork | FiberNode;
