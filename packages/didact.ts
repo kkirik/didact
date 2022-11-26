@@ -7,7 +7,9 @@ interface Props {
   children: FiberNode[];
 }
 
-type DOMNode = Element | Text | undefined;
+type NodeType = keyof HTMLElementTagNameMap | 'TEXT_ELEMENT';
+
+type DOMElement = Element | Text;
 
 export interface DidactElement {
   type: string;
@@ -21,17 +23,41 @@ export interface DidactElement {
 interface RootUnitOfWork {
   props: Props;
   alternate: RootUnitOfWork | undefined;
-  dom: DOMNode;
+  dom: DOMElement | undefined;
   child?: FiberNode;
 }
 
-interface FiberNode {
-  type: keyof HTMLElementTagNameMap | 'TEXT_ELEMENT';
+type FiberNode = FiberUpdateNode | FiberPlacementNode | FiberDeletionNode;
+
+interface FiberUpdateNode {
+  effectTag: 'UPDATE';
+  type: NodeType;
+  props: Props;
+  parent: UnitOfWork;
+  alternate: UnitOfWork;
+  dom: DOMElement | undefined;
+  child?: FiberNode;
+  sibling?: FiberNode;
+}
+
+interface FiberPlacementNode {
+  effectTag: 'PLACEMENT';
+  type: NodeType;
   props: Props;
   parent: UnitOfWork;
   alternate: RootUnitOfWork | undefined;
-  dom: DOMNode;
-  effectTag: 'UPDATE' | 'PLACEMENT' | 'DELETION';
+  dom: DOMElement | undefined;
+  child?: FiberNode;
+  sibling?: FiberNode;
+}
+
+interface FiberDeletionNode {
+  effectTag: 'DELETION';
+  type: NodeType;
+  props: Props;
+  parent: UnitOfWork;
+  alternate: RootUnitOfWork | undefined;
+  dom: DOMElement;
   child?: FiberNode;
   sibling?: FiberNode;
 }
@@ -64,13 +90,13 @@ function createElement(
   };
 }
 
+const isNodeProperty = (key: keyof Props) => key !== 'children';
+
 function createDomNode(fiber: FiberNode) {
   const dom =
     fiber.type === 'TEXT_ELEMENT'
       ? document.createTextNode('')
       : document.createElement(fiber.type);
-
-  const isNodeProperty = (key) => key !== 'children';
 
   Object.keys(fiber.props)
     .filter(isNodeProperty)
@@ -84,7 +110,7 @@ function createDomNode(fiber: FiberNode) {
 let nextUnitOfWork: UnitOfWork | undefined = undefined;
 let wipRoot: RootUnitOfWork | undefined = undefined;
 let currentRoot: RootUnitOfWork | undefined = undefined;
-let deletions: any[] | undefined = undefined;
+let deletions: FiberNode[] | undefined = undefined;
 
 function render(element: FiberNode, container: Element | Text) {
   wipRoot = {
@@ -98,12 +124,26 @@ function render(element: FiberNode, container: Element | Text) {
   nextUnitOfWork = wipRoot;
 }
 
-function updateDom(
-  dom: DOMNode,
-  prevProps: Props | undefined,
-  nextProps: Props | undefined
-) {
-  // TODO
+const isNew = (prev: Props, next: Props) => (key: keyof Props) =>
+  prev[key] !== next[key];
+const isGone = (props: Props) => (key: keyof Props) => !props[key];
+
+function updateDom(dom: DOMElement, prevProps: Props, nextProps: Props) {
+  // Remove old properties
+  Object.keys(prevProps)
+    .filter(isNodeProperty)
+    .filter(isGone(nextProps))
+    .forEach((name) => {
+      dom[name] = '';
+    });
+
+  // Set new or changed properties
+  Object.keys(nextProps)
+    .filter(isNodeProperty)
+    .filter(isNew(prevProps, nextProps))
+    .forEach((name) => {
+      dom[name] = nextProps[name];
+    });
 }
 
 function commitWork(fiber: FiberNode | undefined) {
@@ -115,14 +155,10 @@ function commitWork(fiber: FiberNode | undefined) {
 
   if (fiber.effectTag === 'PLACEMENT' && domParent && fiber.dom) {
     domParent.appendChild(fiber.dom);
-  } else if (fiber.effectTag === 'UPDATE' && domParent && fiber.dom) {
-    updateDom(fiber.dom, fiber.alternate?.props, fiber.props);
+  } else if (fiber.effectTag === 'UPDATE' && fiber.dom) {
+    updateDom(fiber.dom, fiber.alternate.props, fiber.props);
   } else if (fiber.effectTag === 'DELETION' && domParent && fiber.dom) {
-    domParent?.removeChild(fiber.dom);
-  }
-
-  if (domParent && fiber.dom) {
-    domParent.appendChild(fiber.dom);
+    domParent.removeChild(fiber.dom);
   }
 
   commitWork(fiber.child);
@@ -146,7 +182,8 @@ function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
   let prevSibling: FiberNode | undefined = undefined;
 
   while (index < elements.length || oldFiber) {
-    const element = elements[index];
+    // might be undefined when oldFiber exists and elements are empty array
+    const element = elements[index] as FiberNode | undefined;
     let newFiber: FiberNode | undefined = undefined;
 
     const sameType = oldFiber && element && element.type == oldFiber.type;
