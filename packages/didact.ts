@@ -3,6 +3,7 @@
  */
 
 interface Props {
+  [key: string]: any;
   children: FiberNode[];
 }
 
@@ -133,6 +134,7 @@ function commitRoot() {
 
   if (wipRoot?.child) {
     commitWork(wipRoot.child);
+
     currentRoot = wipRoot;
     wipRoot = undefined;
   }
@@ -156,7 +158,7 @@ function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
         props: element.props,
         dom: oldFiber.dom,
         parent: wipFiber,
-        alternate: oldFiber as any,
+        alternate: oldFiber,
         effectTag: 'UPDATE',
       };
     }
