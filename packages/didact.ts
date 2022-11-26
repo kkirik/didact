@@ -6,6 +6,8 @@ interface Props {
   children: FiberNode[];
 }
 
+type DOMNode = Element | Text | undefined;
+
 export interface DidactElement {
   type: string;
   props: {
@@ -17,8 +19,8 @@ export interface DidactElement {
 
 interface RootUnitOfWork {
   props: Props;
-  alternate: RootUnitOfWork | null;
-  dom?: Element | Text;
+  alternate: RootUnitOfWork | undefined;
+  dom: DOMNode;
   child?: FiberNode;
 }
 
@@ -26,9 +28,11 @@ interface FiberNode {
   type: keyof HTMLElementTagNameMap | 'TEXT_ELEMENT';
   props: Props;
   parent: UnitOfWork;
+  alternate: RootUnitOfWork | undefined;
+  dom: DOMNode;
+  effectTag: 'UPDATE' | 'PLACEMENT' | 'DELETION';
   child?: FiberNode;
   sibling?: FiberNode;
-  dom?: Element | Text;
 }
 
 export type UnitOfWork = RootUnitOfWork | FiberNode;
@@ -76,9 +80,10 @@ function createDomNode(fiber: FiberNode) {
   return dom;
 }
 
-let nextUnitOfWork: UnitOfWork | null = null;
-let wipRoot: RootUnitOfWork | null = null;
-let currentRoot: RootUnitOfWork | null = null;
+let nextUnitOfWork: UnitOfWork | undefined = undefined;
+let wipRoot: RootUnitOfWork | undefined = undefined;
+let currentRoot: RootUnitOfWork | undefined = undefined;
+let deletions: any[] | undefined = undefined;
 
 function render(element: FiberNode, container: Element | Text) {
   wipRoot = {
@@ -88,8 +93,16 @@ function render(element: FiberNode, container: Element | Text) {
     },
     alternate: currentRoot,
   };
-
+  deletions = [];
   nextUnitOfWork = wipRoot;
+}
+
+function updateDom(
+  dom: DOMNode,
+  prevProps: Props | undefined,
+  nextProps: Props | undefined
+) {
+  // TODO
 }
 
 function commitWork(fiber: FiberNode | undefined) {
@@ -97,10 +110,18 @@ function commitWork(fiber: FiberNode | undefined) {
     return;
   }
 
-  const parentDom = fiber.parent?.dom;
+  const domParent = fiber.parent?.dom;
 
-  if (parentDom && fiber.dom) {
-    parentDom.appendChild(fiber.dom);
+  if (fiber.effectTag === 'PLACEMENT' && domParent && fiber.dom) {
+    domParent.appendChild(fiber.dom);
+  } else if (fiber.effectTag === 'UPDATE' && domParent && fiber.dom) {
+    updateDom(fiber.dom, fiber.alternate?.props, fiber.props);
+  } else if (fiber.effectTag === 'DELETION' && domParent && fiber.dom) {
+    domParent?.removeChild(fiber.dom);
+  }
+
+  if (domParent && fiber.dom) {
+    domParent.appendChild(fiber.dom);
   }
 
   commitWork(fiber.child);
@@ -108,10 +129,12 @@ function commitWork(fiber: FiberNode | undefined) {
 }
 
 function commitRoot() {
+  deletions?.forEach(commitWork);
+
   if (wipRoot?.child) {
     commitWork(wipRoot.child);
     currentRoot = wipRoot;
-    wipRoot = null;
+    wipRoot = undefined;
   }
 }
 
@@ -133,7 +156,7 @@ function workLoop(deadline: IdleDeadline) {
 
 requestIdleCallback(workLoop);
 
-function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | null {
+function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | undefined {
   /** isn't root fiber node */
   if ('type' in fiber && !fiber.dom) {
     fiber.dom = createDomNode(fiber);
@@ -141,34 +164,13 @@ function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | null {
 
   const elements = fiber.props.children;
 
-  let index = 0;
-  let prevSibling: FiberNode | undefined = undefined;
-
-  while (index < elements.length) {
-    const element = elements[index];
-
-    const newFiber: FiberNode = {
-      type: element.type,
-      props: element.props,
-      parent: fiber,
-      dom: undefined,
-    };
-
-    if (index === 0) {
-      fiber.child = newFiber;
-    } else if (prevSibling) {
-      prevSibling.sibling = newFiber;
-    }
-
-    prevSibling = newFiber;
-    index++;
-  }
+  reconcileChildren(fiber, elements);
 
   if (fiber.child) {
     return fiber.child;
   }
 
-  let nextFiber: UnitOfWork | null = fiber;
+  let nextFiber: UnitOfWork | undefined = fiber;
 
   while (nextFiber) {
     if ('sibling' in nextFiber && nextFiber.sibling) {
@@ -178,11 +180,63 @@ function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | null {
     if ('parent' in nextFiber) {
       nextFiber = nextFiber?.parent;
     } else {
-      nextFiber = null;
+      nextFiber = undefined;
     }
   }
 
-  return null;
+  return undefined;
+}
+
+function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
+  let index = 0;
+  let oldFiber = wipFiber.alternate?.child;
+  let prevSibling: FiberNode | undefined = undefined;
+
+  while (index < elements.length || oldFiber) {
+    const element = elements[index];
+    let newFiber: FiberNode | undefined = undefined;
+
+    const sameType = oldFiber && element && element.type == oldFiber.type;
+
+    if (sameType && oldFiber) {
+      // update the node
+      newFiber = {
+        type: oldFiber.type,
+        props: element.props,
+        dom: oldFiber.dom,
+        parent: wipFiber,
+        alternate: oldFiber as any,
+        effectTag: 'UPDATE',
+      };
+    }
+
+    if (element && !sameType) {
+      // add this node
+      newFiber = {
+        type: element.type,
+        props: element.props,
+        dom: undefined,
+        parent: wipFiber,
+        alternate: undefined,
+        effectTag: 'PLACEMENT',
+      };
+    }
+
+    if (oldFiber && !sameType && deletions) {
+      // delete the oldFiber's node
+      oldFiber.effectTag = 'DELETION';
+      deletions.push(oldFiber);
+    }
+
+    if (index === 0) {
+      wipFiber.child = newFiber;
+    } else if (prevSibling) {
+      prevSibling.sibling = newFiber;
+    }
+
+    prevSibling = newFiber;
+    index++;
+  }
 }
 
 const Didact = {
