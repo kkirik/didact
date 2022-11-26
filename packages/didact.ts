@@ -9,6 +9,7 @@ import type {
   UnitOfWork,
   RootUnitOfWork,
   DOMElement,
+  FiberDeletionNode,
 } from './@types/didact';
 
 export type {
@@ -56,7 +57,7 @@ function createDom(fiber: FiberNode) {
   const dom =
     fiber.type === 'TEXT_ELEMENT'
       ? document.createTextNode('')
-      : document.createElement(fiber.type);
+      : document.createElement(fiber.type as keyof HTMLElementTagNameMap);
 
   updateDom(dom, {children: []}, fiber.props);
 
@@ -120,19 +121,36 @@ function updateDom(dom: DOMElement, prevProps: Props, nextProps: Props) {
     });
 }
 
+function commitDeletion(fiber: FiberDeletionNode, domParent: DOMElement) {
+  if (fiber.dom) {
+    domParent.removeChild(fiber.dom);
+  } else {
+    // For Functional components
+    commitDeletion(fiber.child as FiberDeletionNode, domParent);
+  }
+}
+
 function commitWork(fiber: FiberNode | undefined) {
   if (!fiber) {
     return;
   }
 
-  const domParent = fiber.parent?.dom;
+  let domParentFiber = fiber.parent as FiberNode;
+
+  // For Functional components
+  // Functional components don't contain dom node
+  while (!domParentFiber.dom) {
+    domParentFiber = domParentFiber.parent as FiberNode;
+  }
+
+  const domParent = domParentFiber.dom;
 
   if (fiber.effectTag === 'PLACEMENT' && domParent && fiber.dom) {
     domParent.appendChild(fiber.dom);
   } else if (fiber.effectTag === 'UPDATE' && fiber.dom) {
     updateDom(fiber.dom, fiber.alternate.props, fiber.props);
   } else if (fiber.effectTag === 'DELETION' && domParent && fiber.dom) {
-    domParent.removeChild(fiber.dom);
+    commitDeletion(fiber, domParent);
   }
 
   commitWork(fiber.child);
@@ -207,15 +225,33 @@ function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
   }
 }
 
-function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | undefined {
+function updateFunctionComponent(fiber: FiberNode) {
+  if (!(fiber.type instanceof Function)) {
+    return;
+  }
+
+  const children = [fiber.type(fiber.props)];
+
+  reconcileChildren(fiber, children);
+}
+
+function updateHostComponent(fiber: UnitOfWork) {
   /** isn't root fiber node */
   if ('type' in fiber && !fiber.dom) {
     fiber.dom = createDom(fiber);
   }
 
-  const elements = fiber.props.children;
+  reconcileChildren(fiber, fiber.props.children);
+}
 
-  reconcileChildren(fiber, elements);
+function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | undefined {
+  const isFunctionComponent = 'type' in fiber && fiber.type instanceof Function;
+
+  if (isFunctionComponent) {
+    updateFunctionComponent(fiber);
+  } else {
+    updateHostComponent(fiber);
+  }
 
   if (fiber.child) {
     return fiber.child;
@@ -229,7 +265,7 @@ function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | undefined {
     }
 
     if ('parent' in nextFiber) {
-      nextFiber = nextFiber?.parent;
+      nextFiber = nextFiber.parent;
     } else {
       nextFiber = undefined;
     }

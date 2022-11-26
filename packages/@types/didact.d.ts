@@ -4,7 +4,12 @@ declare namespace Didact {
     children: FiberNode[];
   }
 
-  type NodeType = keyof HTMLElementTagNameMap | 'TEXT_ELEMENT';
+  type FunctionalComponent<T extends Props = any> = (props: T) => FiberNode;
+
+  type NodeType =
+    | FunctionalComponent
+    | keyof HTMLElementTagNameMap
+    | 'TEXT_ELEMENT';
 
   type DOMElement = Element | Text;
 

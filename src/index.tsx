@@ -35,21 +35,11 @@ const newReactElement = (
 
 const container = document.querySelector('.root')!;
 
-const updateValue = (e) => {
-  rerender(e.target.value);
+const App = ({name}) => {
+  return <h1>Hi {name}</h1>;
 };
 
-const rerender = (value) => {
-  const element = (
-    <div>
-      <input onInput={updateValue} value={value} />
-      <h2>Hello {value}</h2>
-    </div>
-  );
-  Didact.render(element, container);
-};
-
-rerender('World');
+Didact.render(<App name="foo" />, container);
 
 // react
 
