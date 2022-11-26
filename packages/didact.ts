@@ -11,6 +11,15 @@ import type {
   DOMElement,
 } from './@types/didact';
 
+export type {
+  DidactElement,
+  Props,
+  FiberNode,
+  UnitOfWork,
+  RootUnitOfWork,
+  DOMElement,
+};
+
 function createTextElement(text: string): DidactElement {
   return {
     type: 'TEXT_ELEMENT',
@@ -37,19 +46,19 @@ function createElement(
   };
 }
 
-const isNodeProperty = (key: keyof Props) => key !== 'children';
+const isNodeProperty = (key: string) => key !== 'children' && !isEvent(key);
+const isNew = (prev: Props, next: Props) => (key: keyof Props) =>
+  prev[key] !== next[key];
+const isGone = (props: Props) => (key: keyof Props) => !props[key];
+const isEvent = (key: string) => key.startsWith('on');
 
-function createDomNode(fiber: FiberNode) {
+function createDom(fiber: FiberNode) {
   const dom =
     fiber.type === 'TEXT_ELEMENT'
       ? document.createTextNode('')
       : document.createElement(fiber.type);
 
-  Object.keys(fiber.props)
-    .filter(isNodeProperty)
-    .forEach((name) => {
-      dom[name] = fiber.props[name];
-    });
+  updateDom(dom, {children: []}, fiber.props);
 
   return dom;
 }
@@ -71,11 +80,19 @@ function render(element: FiberNode, container: Element | Text) {
   nextUnitOfWork = wipRoot;
 }
 
-const isNew = (prev: Props, next: Props) => (key: keyof Props) =>
-  prev[key] !== next[key];
-const isGone = (props: Props) => (key: keyof Props) => !props[key];
-
 function updateDom(dom: DOMElement, prevProps: Props, nextProps: Props) {
+  //Remove old or changed event listeners
+  Object.keys(prevProps)
+    .filter(isEvent)
+    .filter(
+      (name) => isGone(nextProps)(name) || isNew(prevProps, nextProps)(name)
+    )
+    .forEach((name) => {
+      const eventType = name.toLowerCase().substring(2);
+
+      dom.removeEventListener(eventType, prevProps[name]);
+    });
+
   // Remove old properties
   Object.keys(prevProps)
     .filter(isNodeProperty)
@@ -90,6 +107,16 @@ function updateDom(dom: DOMElement, prevProps: Props, nextProps: Props) {
     .filter(isNew(prevProps, nextProps))
     .forEach((name) => {
       dom[name] = nextProps[name];
+    });
+
+  // Add event listeners
+  Object.keys(nextProps)
+    .filter(isEvent)
+    .filter(isNew(prevProps, nextProps))
+    .forEach((name) => {
+      const eventType = name.toLowerCase().substring(2);
+
+      dom.addEventListener(eventType, nextProps[name]);
     });
 }
 
@@ -165,6 +192,10 @@ function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
       deletions.push(oldFiber);
     }
 
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling;
+    }
+
     if (index === 0) {
       wipFiber.child = newFiber;
     } else if (prevSibling) {
@@ -179,7 +210,7 @@ function reconcileChildren(wipFiber: UnitOfWork, elements: FiberNode[]) {
 function performUnitOfWork(fiber: UnitOfWork): UnitOfWork | undefined {
   /** isn't root fiber node */
   if ('type' in fiber && !fiber.dom) {
-    fiber.dom = createDomNode(fiber);
+    fiber.dom = createDom(fiber);
   }
 
   const elements = fiber.props.children;
